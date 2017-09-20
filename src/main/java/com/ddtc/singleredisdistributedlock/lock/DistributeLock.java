@@ -66,7 +66,7 @@ public class DistributeLock {
     public boolean unlock() {
 
         if (this.lock) {
-            //解决用户在 Redis自动删除锁后，尝试解锁的问题
+            //解决在 Redis自动删除锁后，尝试解锁的问题
             if (System.currentTimeMillis() - lockTime <= expire) {
                 redisClient.del(key);//直接删除  如果没有key，也没关系，不会有异常
             }
