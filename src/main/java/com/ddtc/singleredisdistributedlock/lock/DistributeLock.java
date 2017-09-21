@@ -1,12 +1,13 @@
 package com.ddtc.singleredisdistributedlock.lock;
 
 import redis.clients.jedis.Jedis;
+import redis.clients.jedis.JedisPubSub;
 
 
 /**
  * Created by Administrator on 2017/9/13.
  */
-public class DistributeLock {
+public class DistributeLock implements ExpiredListener {
 
 
     private Jedis redisClient = null;
@@ -16,6 +17,13 @@ public class DistributeLock {
     private long lockTime = 0L; //获取到锁的时间
     private boolean lock = false; //锁状态
 
+    public void setLock(boolean lock) {
+        this.lock = lock;
+    }
+
+    public void closeClient() {
+        redisClient.close();
+    }
 
     private static String script =
             "if redis.call('setnx',KEYS[1],KEYS[2]) == 1 then\n"
@@ -29,6 +37,20 @@ public class DistributeLock {
         this.redisClient = jedis;
         this.key = key;
     }
+
+
+    @Override
+    public void onExpired() {
+        ExpiredManager.remove(key,this);
+        this.setLock(false);
+
+        redisClient.close();//关闭连接
+        redisClient = null;
+        System.out.println(key + "Redis超时自动解锁" + Thread.currentThread().getName());
+    }
+
+    //redisClient.psubscribe(new ExpiredSub(this),"__key*__:expired");
+
 
     /**
      * @param timeout 锁阻塞超时的时间  单位：毫秒
@@ -55,6 +77,8 @@ public class DistributeLock {
                         //锁的情况下锁过期后消失，不会造成永久阻塞
                         this.lock = true;
                         System.out.println(key + "加锁成功" + Thread.currentThread().getName());
+                        //交给超时管理器
+                        ExpiredManager.add(key, this);
                         return this.lock;
                     }
 
@@ -64,6 +88,9 @@ public class DistributeLock {
                 }
                 System.out.println("锁超时" + Thread.currentThread().getName());
             } catch (Exception e) {
+                if(e instanceof NullPointerException){
+                    throw new RuntimeException("无法对已经解锁后的锁重新加锁，请重新获取", e);
+                }
                 throw new RuntimeException("locking error", e);
             }
         } else {
@@ -89,11 +116,12 @@ public class DistributeLock {
             }
             this.lock = false;
             redisClient.close();//关闭连接
+            redisClient = null;
 
             System.out.println(key + "解锁成功" + Thread.currentThread().getName());
 
-        }
 
+        }
 
     }
 
