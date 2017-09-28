@@ -43,7 +43,11 @@ public class ExpiredManager {
             new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    jedis.psubscribe(new ExpiredSub(locks), "__key*__:expired");
+                    try {
+                        jedis.psubscribe(new ExpiredSub(locks), "__key*__:expired");
+                    }catch (Exception e){
+                        System.out.println(e.getMessage());
+                    }
                 }
             }).start();
 

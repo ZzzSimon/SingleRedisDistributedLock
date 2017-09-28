@@ -17,11 +17,11 @@ public class DistributeLock implements ExpiredListener {
     private long lockTime = 0L; //获取到锁的时间
     private boolean lock = false; //锁状态
 
-    public void setLock(boolean lock) {
+    private void setLock(boolean lock) {
         this.lock = lock;
     }
 
-    public void closeClient() {
+    private void closeClient() {
         redisClient.close();
     }
 
@@ -46,7 +46,7 @@ public class DistributeLock implements ExpiredListener {
 
         redisClient.close();//关闭连接
         redisClient = null;
-        System.out.println(key + "Redis超时自动解锁" + Thread.currentThread().getName());
+        System.out.println(key +lockTime+ "Redis超时自动解锁" + Thread.currentThread().getName());
     }
 
     //redisClient.psubscribe(new ExpiredSub(this),"__key*__:expired");
@@ -76,17 +76,17 @@ public class DistributeLock implements ExpiredListener {
                         this.lockTime = System.currentTimeMillis();
                         //锁的情况下锁过期后消失，不会造成永久阻塞
                         this.lock = true;
-                        System.out.println(key + "加锁成功" + Thread.currentThread().getName());
+                        System.out.println(key+lockTime + "加锁成功" + Thread.currentThread().getName());
                         //交给超时管理器
                         ExpiredManager.add(key, this);
                         return this.lock;
                     }
 
-                    System.out.println("出现锁等待" + Thread.currentThread().getName());
+                    System.out.println(key+lockTime +"出现锁等待" + Thread.currentThread().getName());
                     //短暂休眠，避免可能的活锁
                     Thread.sleep(500);
                 }
-                System.out.println("锁超时" + Thread.currentThread().getName());
+                System.out.println(key+lockTime +"锁超时" + Thread.currentThread().getName());
             } catch (Exception e) {
                 if(e instanceof NullPointerException){
                     throw new RuntimeException("无法对已经解锁后的锁重新加锁，请重新获取", e);
@@ -95,7 +95,7 @@ public class DistributeLock implements ExpiredListener {
             }
         } else {
             //System.out.println(key + "不可重入/用");
-            throw new RuntimeException(key + "不可重入/用");
+            throw new RuntimeException(key +lockTime+ "不可重入/用");
 
         }
 
@@ -118,9 +118,11 @@ public class DistributeLock implements ExpiredListener {
             redisClient.close();//关闭连接
             redisClient = null;
 
-            System.out.println(key + "解锁成功" + Thread.currentThread().getName());
+            System.out.println(key+ lockTime+ "解锁成功" + Thread.currentThread().getName());
 
 
+        }else {
+            System.out.println(key +lockTime+ "已经解锁" + Thread.currentThread().getName());
         }
 
     }

@@ -24,7 +24,9 @@ public class Test3 {
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
-        lock1.lock(1000 * 20L, 5);
+        lock2.lock(1000 * 20L, 5);
+        lock1.unlock();
+        System.out.println("----");
 
         ExpiredManager.close();
     }
